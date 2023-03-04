@@ -1,0 +1,17 @@
+.App {
+  width: 100vw;
+  height: 100vh;
+  background-color: azure;
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+
+.container {
+  height: 70vh;
+  width: 60vw;
+  background-color: beige;
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}

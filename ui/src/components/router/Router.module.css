@@ -1,0 +1,24 @@
+.Router {
+  width: 100px;
+  height: 70vh;
+  background-color: pink;
+  float: left;
+  margin-left: 15%;
+  border-radius: 5px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+}
+
+/* .list_item {
+  height: 50px;
+  background-color: cornsilk;
+} */
+
+/* span {
+  height: 20px;
+  background-color: beige;
+} */

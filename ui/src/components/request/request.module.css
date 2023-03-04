@@ -1,0 +1,15 @@
+.inexPreview {
+  margin-top: 1rem;
+  width: 75%;
+  height: 75%;
+  border: solid 2px #ddd;
+  border-radius: 5px;
+}
+
+.requestSection {
+  width: 80%;
+  height: 80%;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+}
