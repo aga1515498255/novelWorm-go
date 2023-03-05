@@ -8,19 +8,26 @@ jobs:
   release-linux-amd64:
     name: release linux/amd64
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # build and publish in parallel: linux/386, linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
-        goos: [linux, windows, darwin]
-        goarch: [amd64, arm64]
-        exclude:
-          - goarch: arm64
-            goos: windows
+#     strategy:
+#       matrix:
+#         # build and publish in parallel: linux/386, linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
+#         goos: [linux, windows, darwin]
+#         goarch: [amd64, arm64]
+#         exclude:
+#           - goarch: arm64
+#             goos: windows
     steps:
       - uses: actions/checkout@v3
-      - uses: wangyoucao577/go-release-action@v1.36
+      - name: Setup Go environment
+        uses: actions/setup-go@v3.5.0
         with:
-          github_token: ${{ secrets.RELEASE_TOKEN }}
-          goos: ${{ matrix.goos }}
-          goarch: ${{ matrix.goarch }}
-          build_command: go build ./main.go
+          go-version: '1.18'
+     
+      - name: build
+        run: go build ./main.go
+        
+      - name: GitHub Releases 
+        uses: varun-bst/release-action@v1.7
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+          artifacts: "main.exe"
