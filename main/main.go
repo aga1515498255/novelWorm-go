@@ -12,9 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	app "home-cinema/ui"
+	app "ui"
 
-	worm "home-cinema/worm"
+	worm "worm"
 )
 
 func main() {
@@ -108,7 +108,7 @@ func preview(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println(urls[0])
 
-	charpters, err := worm.GetchapterURL(urls[0])
+	charpters, err := worm.GetchapterURL(urls[0], worm.MODE_PREVIWE)
 	if err != nil {
 		fmt.Println("erro in get charpters", err)
 	}

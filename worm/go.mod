@@ -1,4 +1,4 @@
-module home-cinema
+module worm
 
 go 1.18
 

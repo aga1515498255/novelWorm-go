@@ -13,6 +13,11 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	MODE_PREVIWE = 0
+	MODE_FULL    = 1
+)
+
 var configs []config
 
 type config struct {
@@ -94,7 +99,7 @@ func GetNovel(url string) {
 
 	}
 
-	chapterInfos, err := GetchapterURL(url)
+	chapterInfos, err := GetchapterURL(url, MODE_FULL)
 	if err != nil {
 		panic("error in get GetchapterURL: " + err.Error())
 
@@ -139,7 +144,7 @@ func getConfigObj(indexURL string) (config, error) {
 	return config{}, errors.New("no website found")
 }
 
-func GetchapterURL(indexURL string) ([]CharpterHeadInfo, error) {
+func GetchapterURL(indexURL string, mode int) ([]CharpterHeadInfo, error) {
 
 	configObj, err := getConfigObj(indexURL)
 	if err != nil {
@@ -169,7 +174,14 @@ func GetchapterURL(indexURL string) ([]CharpterHeadInfo, error) {
 
 	fmt.Println("输出获取到的文档：", doc)
 
-	res := configObj.getchapterRef(doc)[0:20]
+	var res []CharpterHeadInfo
+
+	if mode == MODE_PREVIWE {
+		res = configObj.getchapterRef(doc)[0:20]
+
+	} else if mode == MODE_FULL {
+		res = configObj.getchapterRef(doc)
+	}
 
 	return res, nil
 

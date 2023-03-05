@@ -104,41 +104,52 @@ func CreateTask(novelName string, chapters []CharpterHeadInfo, config config) ta
 }
 
 func (t *task) Start() {
+	var gettingIndex = -1
 	fmt.Println("task开始启动")
 	for i := 0; i < t.BufferSize; i++ {
 		if i <= len(t.Chapters) {
-			go t.getOneChapter(i, t.Chapters[i].CharpterURL)
+			gettingIndex += 1
+
+			go t.getOneChapter(i, t.Chapters[gettingIndex].CharpterURL)
 
 		}
 
 	}
 
 	for {
-		if t.CurrentIndex >= len(t.Chapters) {
+
+		var item = <-t.ch
+
+		if t.CurrentIndex >= len(t.Chapters)-1 {
 			return
 		}
-		var item = <-t.ch
 
 		fmt.Println("从通道获得:", item.index)
 
 		t.charpterBuffer.inputcontent(item)
 
 		if item.index-t.CurrentIndex == 1 {
-			ok := t.storeFromBuffer(item.index)
-			if ok {
-				index := t.CurrentIndex + 1
-				go t.getOneChapter(index, t.Chapters[index].CharpterURL)
+			savedum := t.storeFromBuffer(item.index)
+			for i := 0; i < savedum; i++ {
+				t.CurrentIndex += 1
+
+				if gettingIndex < len(t.Chapters)-1 {
+					gettingIndex += 1
+
+					go t.getOneChapter(gettingIndex, t.Chapters[gettingIndex].CharpterURL)
+				}
 			}
+
 		}
 	}
 
 }
 
-func (t *task) storeFromBuffer(startfrom int) bool {
+func (t *task) storeFromBuffer(startfrom int) int {
+
+	var savedNum = 0
 
 	var data []byte
-
-	var changed = false
 
 	for {
 
@@ -148,10 +159,7 @@ func (t *task) storeFromBuffer(startfrom int) bool {
 
 		if content == nil {
 
-			if changed {
-				return true
-			}
-			return false
+			return savedNum
 		}
 
 		t.file.Write([]byte("第" + fmt.Sprint(startfrom) + "章" + t.Chapters[startfrom].ChapterName + "\n"))
@@ -162,15 +170,13 @@ func (t *task) storeFromBuffer(startfrom int) bool {
 
 		t.file.Write([]byte("\n"))
 
-		t.CurrentIndex += 1
-
 		fmt.Println(t.Chapters[startfrom].ChapterName + " 已录入")
 
 		t.charpterBuffer.deleteItem(i)
 
-		changed = true
-
 		startfrom += 1
+
+		savedNum += 1
 
 	}
 }
