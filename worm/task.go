@@ -1,10 +1,15 @@
 package worm
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
+	"runtime"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -54,63 +59,221 @@ func (b *myBuffer) deleteItem(indexInBuffer int) {
 }
 
 type task struct {
-	name string
+	Name string `json:"name"`
 
-	id string
+	Id string `json:"id"`
 
-	path string
+	Path string `json:"path"`
 
 	file io.Writer
 
-	status int
+	Mark string `json:"mark"`
 
-	Config config
+	Status int `json:"status"`
 
-	Chapters []CharpterHeadInfo
+	Config config `json:"config"`
 
-	CurrentIndex int
+	chapters []CharpterHeadInfo
 
-	BufferSize int
+	CurrentIndex int `json:"currentIndex"`
+
+	BufferSize int `json:"bufferSize"`
 
 	charpterBuffer myBuffer
 
 	ch chan bufferItem
 }
 
-func CreateTask(novelName string, chapters []CharpterHeadInfo, config config) task {
+var Tasks []task
+
+func init() {
+
+	a, filepath, c, d := runtime.Caller(0)
+	fmt.Printf("a is %v b is %v c is %v d si %v", a, filepath, c, d)
+
+	dir, _ := path.Split(filepath)
+
+	for path.Base(dir) != "videosite" {
+		dir = dir[:len(dir)-1]
+		fmt.Println(dir)
+		dir, _ = path.Split(dir)
+		fmt.Println(dir)
+	}
+	novelPath := path.Join(dir, "novel")
+
+	novels, err := ioutil.ReadDir(novelPath)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	for _, v := range novels {
+		markPath := path.Join(novelPath, v.Name(), "mark.json")
+		chaptersPath := path.Join(novelPath, v.Name(), "chapters.json")
+
+		markFile, err := os.Open(markPath)
+		if err != nil {
+			fmt.Println(err)
+		}
+		markBytes, err := io.ReadAll(markFile)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		var t = *new(task)
+		err = json.Unmarshal(markBytes, &t)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		fmt.Println("task path is:", t.Path)
+
+		//读取章节信息
+		chaptersFile, err := os.Open(chaptersPath)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		chaptersBytes, err := io.ReadAll(chaptersFile)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		var chapters []CharpterHeadInfo
+		err = json.Unmarshal(chaptersBytes, &chapters)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		t.chapters = chapters
+
+		Tasks = append(Tasks, t)
+
+		fmt.Println("Tasks length is ", len(Tasks))
+
+	}
+
+}
+
+func CreateTask(novelName string, chapters []CharpterHeadInfo, config config) (task, error) {
 	fmt.Println("新建task")
 	goupsize := len(chapters) / 100
+
+	seconds := time.Now().Unix()
+
+	folderName := novelName + "_" + fmt.Sprint(seconds)
+
+	folderPath := path.Join("novel", folderName)
 
 	if goupsize < 5 {
 		goupsize = 5
 	}
 
-	file, err := os.OpenFile("./novel.txt", os.O_APPEND|os.O_RDWR, os.ModeAppend|os.ModePerm)
-	if err != nil {
-		panic("error in creat task :" + err.Error())
+	// file, err := os.OpenFile("./novel.txt", os.O_APPEND|os.O_RDWR, os.ModeAppend|os.ModePerm)
+	// if err != nil {
+	// 	panic("error in creat task :" + err.Error())
+	// }
+	// fmt.Println("bufferSize is ", goupsize)
+
+	_, callerPath, _, _ := runtime.Caller(0)
+	dir, _ := path.Split(callerPath)
+
+	for path.Base(dir) != "videosite" {
+		dir = dir[:len(dir)-1]
+		fmt.Println(dir)
+		dir, _ = path.Split(dir)
+		fmt.Println(dir)
 	}
+
+	folderPath = path.Join(dir, folderPath)
+
+	err := os.MkdirAll(folderPath, 0750)
+	if err != nil {
+		return task{}, err
+	}
+
+	filePath := path.Join(folderPath, "novel.txt")
+	markPath := path.Join(folderPath, "mark.json")
+
+	// filePath = path.Join(dir, filePath)
+	// markPath = path.Join(dir, markPath)
+
+	os.Chdir(folderPath)
+
+	_, err = os.Create("novel.txt")
+	if err != nil {
+		return task{}, err
+	}
+
+	mark, err := os.Create("mark.json")
+	if err != nil {
+		return task{}, err
+	}
+
+	chaptersFile, err := os.Create("chapters.json")
+	if err != nil {
+		return task{}, err
+	}
+
 	fmt.Println("bufferSize is ", goupsize)
 
-	return task{
+	var t = task{
+		Name:         novelName,
 		Config:       config,
-		Chapters:     chapters,
+		chapters:     chapters,
 		CurrentIndex: -1,
 		BufferSize:   goupsize,
-		status:       statusStoped,
+		Status:       statusStoped,
 		ch:           make(chan bufferItem, goupsize),
-		file:         file,
+		Mark:         markPath,
+		Path:         filePath,
 	}
 
+	Tasks = append(Tasks, t)
+
+	data, err := json.Marshal(&t)
+	if err != nil {
+		fmt.Println(err)
+	}
+	mark.Write(data)
+
+	mark.Close()
+
+	data, err = json.Marshal(&t)
+	if err != nil {
+		fmt.Println(err)
+	}
+	chaptersFile.Write(data)
+
+	chaptersFile.Close()
+
+	return t, nil
 }
 
 func (t *task) Start() {
+
+	if t.Status == statusFinished {
+		fmt.Printf("novel '%v' is already finished", t.Name)
+		return
+	}
+
+	t.Status = statusRunning
+
+	novelFile, err := os.Open(t.Path)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	t.charpterBuffer = *new(myBuffer)
+
+	t.file = novelFile
+
 	var gettingIndex = -1
 	fmt.Println("task开始启动")
 	for i := 0; i < t.BufferSize; i++ {
-		if i <= len(t.Chapters) {
+		if i <= len(t.chapters) {
 			gettingIndex += 1
 
-			go t.getOneChapter(i, t.Chapters[gettingIndex].CharpterURL)
+			go t.getOneChapter(i, t.chapters[gettingIndex].CharpterURL)
 
 		}
 
@@ -120,7 +283,8 @@ func (t *task) Start() {
 
 		var item = <-t.ch
 
-		if t.CurrentIndex >= len(t.Chapters)-1 {
+		if t.CurrentIndex >= len(t.chapters)-1 {
+			fmt.Println("爬取结束")
 			return
 		}
 
@@ -133,10 +297,10 @@ func (t *task) Start() {
 			for i := 0; i < savedum; i++ {
 				t.CurrentIndex += 1
 
-				if gettingIndex < len(t.Chapters)-1 {
+				if gettingIndex < len(t.chapters)-1 {
 					gettingIndex += 1
 
-					go t.getOneChapter(gettingIndex, t.Chapters[gettingIndex].CharpterURL)
+					go t.getOneChapter(gettingIndex, t.chapters[gettingIndex].CharpterURL)
 				}
 			}
 
@@ -162,7 +326,7 @@ func (t *task) storeFromBuffer(startfrom int) int {
 			return savedNum
 		}
 
-		t.file.Write([]byte("第" + fmt.Sprint(startfrom) + "章" + t.Chapters[startfrom].ChapterName + "\n"))
+		t.file.Write([]byte("第" + fmt.Sprint(startfrom) + "章" + t.chapters[startfrom].ChapterName + "\n"))
 
 		data = []byte(*content)
 
@@ -170,7 +334,9 @@ func (t *task) storeFromBuffer(startfrom int) int {
 
 		t.file.Write([]byte("\n"))
 
-		fmt.Println(t.Chapters[startfrom].ChapterName + " 已录入")
+		t.markIndex(startfrom)
+
+		fmt.Println(t.chapters[startfrom].ChapterName + " 已录入")
 
 		t.charpterBuffer.deleteItem(i)
 
@@ -178,7 +344,32 @@ func (t *task) storeFromBuffer(startfrom int) int {
 
 		savedNum += 1
 
+		if startfrom >= len(t.chapters) {
+			t.markIndex(-2)
+			t.Status = statusFinished
+			return savedNum
+		}
+
 	}
+}
+
+func (t *task) markIndex(index int) bool {
+	markFile, err := os.OpenFile(t.Mark, os.O_SYNC|os.O_TRUNC, os.ModeSocket)
+	if err != nil {
+		return false
+	}
+
+	if index == -2 {
+		markFile.Write([]byte("done"))
+		return true
+	}
+
+	data, err := json.Marshal(t)
+	markFile.Write(data)
+
+	markFile.Close()
+
+	return true
 }
 
 func (t *task) getOneChapter(intdex int, url string) error {
@@ -208,7 +399,8 @@ func (t *task) getOneChapter(intdex int, url string) error {
 	}
 
 	selector.Each(func(i int, s *goquery.Selection) {
-		content = s.Text()
+		elementContent := s.Text()
+		content += elementContent + "\n"
 	})
 
 	fmt.Println("第", intdex, "章，总长：", len(content))

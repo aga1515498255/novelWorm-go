@@ -7,7 +7,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -63,12 +65,31 @@ func (c *config) getchapterRef(doc *goquery.Document) []CharpterHeadInfo {
 	return chapterRef
 }
 
+func (c *config) getName(url string) {
+
+}
+
 func GetConfigs() []config {
 	return configs
 }
 
 func init() {
-	configfile, err := os.Open("./worm/config.json")
+
+	a, filepath, c, d := runtime.Caller(0)
+	fmt.Printf("a is %v b is %v c is %v d si %v", a, filepath, c, d)
+
+	dir, _ := path.Split(filepath)
+
+	for path.Base(dir) != "videosite" {
+		dir = dir[:len(dir)-1]
+		fmt.Println(dir)
+		dir, _ = path.Split(dir)
+		fmt.Println(dir)
+	}
+
+	configPath := path.Join(dir, "worm", "config.json")
+
+	configfile, err := os.Open(configPath)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -107,9 +128,9 @@ func GetNovel(url string) {
 
 	fmt.Println("chapter infos is ", len(chapterInfos))
 
-	task := CreateTask("test", chapterInfos, config)
+	task, _ := CreateTask("test", chapterInfos, config)
 
-	task.Start()
+	go task.Start()
 }
 
 func Getfile() (*os.File, error) {

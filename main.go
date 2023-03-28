@@ -9,6 +9,7 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -17,11 +18,17 @@ import (
 	worm "worm"
 )
 
+func Open(uri string) error {
+	cmd := exec.Command("cmd", "/C", "start "+uri)
+	return cmd.Run()
+}
+
 func main() {
 	r := http.NewServeMux()
 	r.HandleFunc("/api/preview", preview)
 	r.HandleFunc("/api/config", config)
 	r.HandleFunc("/api/getNovel", getnovel)
+	r.HandleFunc("/api/tasks", getTasks)
 	// r.HandleFunc("/api/check-token", checkToken)
 	// r.HandleFunc("/login", handleLogin)
 
@@ -32,10 +39,9 @@ func main() {
 		Handler: r,
 	}
 
-	err := s.ListenAndServe()
-	if err != nil {
-		fmt.Println(err)
-	}
+	Open("http://localhost:4321")
+
+	s.ListenAndServe()
 
 }
 
@@ -43,11 +49,24 @@ var uiFS fs.FS
 
 func init() {
 	var err error
-	uiFS, err = fs.Sub(app.UI, "build")
+	uiFS, err = fs.Sub(app.UI, "build") //
 	if err != nil {
 		log.Fatal("failed to get ui fs", err)
 	}
 	fmt.Println(os.Args[0])
+}
+
+func getTasks(w http.ResponseWriter, r *http.Request) {
+	res, err := json.Marshal(worm.Tasks)
+	if err != nil {
+		fmt.Println(err)
+	}
+	w.Header().Set("Access-Control-Allow-Origin", "*") //允许访问所有域
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Add("Access-Control-Allow-Headers", "accessToken,appKey,User-Agent,DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type")
+	w.Header().Set("content-type", "application/json")
+
+	w.Write(res)
 }
 
 func handleStatic(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +93,7 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println("path: ", path)
 
-	file, err := uiFS.Open(path)
+	file, err := uiFS.Open("index.html")
 	if err != nil {
 		if os.IsNotExist(err) {
 			log.Println("file", path, "not found:", err)
@@ -166,6 +185,6 @@ func getnovel(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "accessToken,appKey,User-Agent,DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type")
 	w.Header().Set("content-type", "application/json")
 
-	w.Write([]byte("{stats:200}"))
+	w.Write([]byte("{status:200}"))
 
 }

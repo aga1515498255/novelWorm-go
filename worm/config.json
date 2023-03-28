@@ -2,10 +2,7 @@
   {
     "name": "灯笔小说网",
     "websetURl": "https://www.dengbi2.com",
-    "waterMark": [
-      "全网小说免费看,更新快:【APP安卓版】",
-      "继续阅读本书最新章节，进入灯笔小说网址：www.DengBi.com "
-    ],
+    "waterMark": ["全网小说免费看,更新快:【APP安卓版】", "继续阅读本书最新章节，进入灯笔小说网址：www.DengBi.com "],
     "chapterSelector": ["ul#ul_all_chapters", "li", "a"],
     "urlSelector": {
       "chapterName": "text",
@@ -16,10 +13,7 @@
   {
     "name": "铅笔小说网",
     "websetURl": "https://www.23qb.com",
-    "waterMark": [
-      "全网小说免费看,更新快:【APP安卓版】",
-      "继续阅读本书最新章节，进入灯笔小说网址：www.DengBi.com "
-    ],
+    "waterMark": ["全网小说免费看,更新快:【APP安卓版】", "继续阅读本书最新章节，进入灯笔小说网址：www.DengBi.com "],
     "chapterSelector": ["ul#ul_all_chapters", "li", "a"],
     "urlSelector": {
       "chapterName": "text",
@@ -28,11 +22,21 @@
     "contentSelector": ["article#article"]
   },
   {
+    "name": "逆天邪神网",
+    "websetURl": "https://www.93xscc.com",
+    "waterMark": ["如果被/浏/览/器/强/制进入它们的阅/读/模/式了,阅读体/验极/差请退出转/码阅读."],
+    "nameSelector": [".m-infos", "h1", "text"],
+    "chapterSelector": ["li.line3", "a"],
+    "urlSelector": {
+      "chapterName": "text",
+      "chapterURL": "href"
+    },
+    "contentSelector": ["div#content", "p"]
+  },
+  {
     "name": "灯笔8",
     "websetURl": "https://www.dengbi8.com",
-    "waterMark": [
-      "请记住本书首发域名：https://www.dengbi8.com。手机版阅读网址：https://wap.dengbi8.com "
-    ],
+    "waterMark": ["请记住本书首发域名：https://www.dengbi8.com。手机版阅读网址：https://wap.dengbi8.com "],
     "chapterSelector": ["div.listmain", "dl", "dd", "a[style]"],
     "urlSelector": {
       "chapterName": "text",
