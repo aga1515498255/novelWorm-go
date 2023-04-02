@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/tidwall/gjson"
 )
 
 const (
@@ -59,47 +61,39 @@ func (b *myBuffer) deleteItem(indexInBuffer int) {
 }
 
 type task struct {
-	Name string `json:"name"`
+	Name         string `json:"name"`
+	Id           string `json:"id"`
+	CurrentIndex int    `json:"currentIndex"`
+	BufferSize   int    `json:"bufferSize"`
+	Status       int    `json:"status"`
 
-	Id string `json:"id"`
-
-	Path string `json:"path"`
-
-	file io.Writer
-
-	Mark string `json:"mark"`
-
-	Status int `json:"status"`
-
-	Config config `json:"config"`
-
-	chapters []CharpterHeadInfo
-
-	CurrentIndex int `json:"currentIndex"`
-
-	BufferSize int `json:"bufferSize"`
-
+	toClient       chan InputData
+	path           string
+	file           *os.File
+	mark           string
+	config         config
+	chapters       []CharpterHeadInfo
 	charpterBuffer myBuffer
-
-	ch chan bufferItem
+	ch             chan bufferItem
 }
 
-var Tasks []task
+var tasks []*task
 
 func init() {
 
-	a, filepath, c, d := runtime.Caller(0)
-	fmt.Printf("a is %v b is %v c is %v d si %v", a, filepath, c, d)
+	// a, filepath, c, d := runtime.Caller(0)
+	// fmt.Printf("a is %v b is %v c is %v d si %v", a, filepath, c, d)
 
-	dir, _ := path.Split(filepath)
+	// dir, _ := path.Split(filepath)
 
-	for path.Base(dir) != "videosite" {
-		dir = dir[:len(dir)-1]
-		fmt.Println(dir)
-		dir, _ = path.Split(dir)
-		fmt.Println(dir)
-	}
-	novelPath := path.Join(dir, "novel")
+	// for path.Base(dir) != "videosite" {
+	// 	dir = dir[:len(dir)-1]
+	// 	fmt.Println(dir)
+	// 	dir, _ = path.Split(dir)
+	// 	fmt.Println(dir)
+	// }
+	// novelPath := path.Join(dir, "novel")
+	novelPath := "./novel"
 
 	novels, err := ioutil.ReadDir(novelPath)
 	if err != nil {
@@ -125,7 +119,7 @@ func init() {
 			fmt.Println(err)
 		}
 
-		fmt.Println("task path is:", t.Path)
+		fmt.Println("task path is:", t.path)
 
 		//读取章节信息
 		chaptersFile, err := os.Open(chaptersPath)
@@ -146,15 +140,21 @@ func init() {
 
 		t.chapters = chapters
 
-		Tasks = append(Tasks, t)
+		t.toClient = make(chan InputData)
 
-		fmt.Println("Tasks length is ", len(Tasks))
+		tasks = append(tasks, &t)
+		go t.sendToClient()
+
+		fmt.Println("Tasks length is ", len(tasks))
 
 	}
+
+	go CollectTask()
 
 }
 
 func CreateTask(novelName string, chapters []CharpterHeadInfo, config config) (task, error) {
+
 	fmt.Println("新建task")
 	goupsize := len(chapters) / 100
 
@@ -167,12 +167,6 @@ func CreateTask(novelName string, chapters []CharpterHeadInfo, config config) (t
 	if goupsize < 5 {
 		goupsize = 5
 	}
-
-	// file, err := os.OpenFile("./novel.txt", os.O_APPEND|os.O_RDWR, os.ModeAppend|os.ModePerm)
-	// if err != nil {
-	// 	panic("error in creat task :" + err.Error())
-	// }
-	// fmt.Println("bufferSize is ", goupsize)
 
 	_, callerPath, _, _ := runtime.Caller(0)
 	dir, _ := path.Split(callerPath)
@@ -216,33 +210,43 @@ func CreateTask(novelName string, chapters []CharpterHeadInfo, config config) (t
 
 	fmt.Println("bufferSize is ", goupsize)
 
+	id, _ := gonanoid.New()
 	var t = task{
+		Id:           id,
 		Name:         novelName,
-		Config:       config,
+		config:       config,
 		chapters:     chapters,
 		CurrentIndex: -1,
 		BufferSize:   goupsize,
 		Status:       statusStoped,
 		ch:           make(chan bufferItem, goupsize),
-		Mark:         markPath,
-		Path:         filePath,
+		mark:         markPath,
+		path:         filePath,
+		toClient:     make(chan InputData),
 	}
 
-	Tasks = append(Tasks, t)
+	tasks = append(tasks, &t)
+	go t.sendToClient()
 
 	data, err := json.Marshal(&t)
 	if err != nil {
 		fmt.Println(err)
 	}
-	mark.Write(data)
-
+	_, err = mark.Write(data)
+	if err != nil {
+		fmt.Println("init mark file ", err)
+	}
 	mark.Close()
 
-	data, err = json.Marshal(&t)
+	data, err = json.Marshal(&chapters)
 	if err != nil {
 		fmt.Println(err)
 	}
-	chaptersFile.Write(data)
+
+	_, err = chaptersFile.Write(data)
+	if err != nil {
+		fmt.Println("write chapterInfo in chapters", err)
+	}
 
 	chaptersFile.Close()
 
@@ -250,7 +254,6 @@ func CreateTask(novelName string, chapters []CharpterHeadInfo, config config) (t
 }
 
 func (t *task) Start() {
-
 	if t.Status == statusFinished {
 		fmt.Printf("novel '%v' is already finished", t.Name)
 		return
@@ -258,7 +261,7 @@ func (t *task) Start() {
 
 	t.Status = statusRunning
 
-	novelFile, err := os.Open(t.Path)
+	novelFile, err := os.OpenFile(t.path, os.O_WRONLY, os.ModePerm)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -283,11 +286,6 @@ func (t *task) Start() {
 
 		var item = <-t.ch
 
-		if t.CurrentIndex >= len(t.chapters)-1 {
-			fmt.Println("爬取结束")
-			return
-		}
-
 		fmt.Println("从通道获得:", item.index)
 
 		t.charpterBuffer.inputcontent(item)
@@ -302,11 +300,39 @@ func (t *task) Start() {
 
 					go t.getOneChapter(gettingIndex, t.chapters[gettingIndex].CharpterURL)
 				}
+
+			}
+
+			t.sendToClient()
+
+			if t.CurrentIndex >= len(t.chapters)-1 {
+				t.Status = statusFinished
+				t.file.Close()
+
+				t.markFinish()
+				fmt.Println("爬取结束")
+				return
 			}
 
 		}
 	}
 
+}
+
+func (t *task) sendToClient() {
+
+	data, err := json.Marshal(*t)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	jsonString := gjson.ParseBytes(data).String()
+
+	out := InputData{Id: t.Id, Json: jsonString}
+
+	fmt.Println("in sendToClient write into chan:", jsonString)
+
+	t.toClient <- out
 }
 
 func (t *task) storeFromBuffer(startfrom int) int {
@@ -326,13 +352,20 @@ func (t *task) storeFromBuffer(startfrom int) int {
 			return savedNum
 		}
 
-		t.file.Write([]byte("第" + fmt.Sprint(startfrom) + "章" + t.chapters[startfrom].ChapterName + "\n"))
-
+		_, err := t.file.Write([]byte("第" + fmt.Sprint(startfrom) + "章" + t.chapters[startfrom].ChapterName + "\n"))
+		if err != nil {
+			fmt.Println("write chapter header", err)
+		}
 		data = []byte(*content)
 
-		t.file.Write(data)
-
-		t.file.Write([]byte("\n"))
+		_, err = t.file.Write(data)
+		if err != nil {
+			fmt.Println("write chapter data ", err)
+		}
+		_, err = t.file.Write([]byte("\n"))
+		if err != nil {
+			fmt.Println("write return", err)
+		}
 
 		t.markIndex(startfrom)
 
@@ -354,20 +387,24 @@ func (t *task) storeFromBuffer(startfrom int) int {
 }
 
 func (t *task) markIndex(index int) bool {
-	markFile, err := os.OpenFile(t.Mark, os.O_SYNC|os.O_TRUNC, os.ModeSocket)
+
+	markFile, err := os.OpenFile(t.mark, os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
+		fmt.Println("open mark file ", err)
 		return false
 	}
-
-	if index == -2 {
-		markFile.Write([]byte("done"))
-		return true
-	}
+	defer markFile.Close()
 
 	data, err := json.Marshal(t)
-	markFile.Write(data)
-
-	markFile.Close()
+	if err != nil {
+		fmt.Println("json mark ", err)
+		return false
+	}
+	_, err = markFile.Write(data)
+	if err != nil {
+		fmt.Println("write mark ", err)
+		return false
+	}
 
 	return true
 }
@@ -379,7 +416,7 @@ func (t *task) getOneChapter(intdex int, url string) error {
 
 	fmt.Println("开始获取：" + url)
 
-	res, err := http.Get(t.Config.WebsetURl + charpter1)
+	res, err := http.Get(t.config.WebsetURl + charpter1)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
@@ -394,7 +431,7 @@ func (t *task) getOneChapter(intdex int, url string) error {
 
 	var selector *goquery.Selection = doc.Selection
 
-	for _, s := range t.Config.ContentSelector {
+	for _, s := range t.config.ContentSelector {
 		selector = selector.Find(s)
 	}
 
@@ -408,4 +445,23 @@ func (t *task) getOneChapter(intdex int, url string) error {
 	t.ch <- bufferItem{index: intdex, content: &content}
 
 	return nil
+}
+
+func (t *task) markFinish() {
+
+	markFile, err := os.OpenFile(t.mark, os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println("open mark file ", err)
+	}
+
+	data, err := json.Marshal(t)
+	if err != nil {
+		fmt.Println("json mark ", err)
+	}
+	_, err = markFile.Write(data)
+	if err != nil {
+		fmt.Println("write mark ", err)
+	}
+	markFile.Close()
+
 }

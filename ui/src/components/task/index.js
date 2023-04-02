@@ -30,17 +30,35 @@ export default function Task() {
 
   const fetchTask = () => {
     axios.get(config.getPrefix() + `/api/tasks`).then((res) => {
-      const finished = res.data.filter((v) => v.status === 2);
+      let tasks = [];
+
+      tasks = res.data.map((v) => JSON.parse(v));
+
+      const finished = tasks.filter((v) => v.status === 2);
       setFinished(finished);
 
-      const unfinished = res.data.filter((v) => v.status !== 2);
+      const unfinished = tasks.filter((v) => v.status !== 2);
 
       setUnFinished(unfinished);
     });
   };
 
+  const getTasks = () => {
+    const get = setInterval(() => {
+      console.log("get tasks");
+
+      fetchTask();
+    }, 1000);
+
+    return get;
+  };
+
   React.useEffect(() => {
-    fetchTask();
+    const get = getTasks();
+
+    return () => {
+      clearInterval(get);
+    };
   }, []);
 
   return (

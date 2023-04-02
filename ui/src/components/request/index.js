@@ -14,7 +14,7 @@ export default class Header extends Component {
   preview = () => {
     let url = document.getElementById("outlined-basic").value;
     console.log(config.getPrefix());
-    axois.get(config.getPrefix() + `/api/preview?url=${url}`).then(
+    axois.get(config.getPrefix() + `/api/preview/?url=${url}`).then(
       (resolve) => {
         this.setState({ previewText: resolve.data });
       },
@@ -27,7 +27,7 @@ export default class Header extends Component {
   submit = () => {
     let url = document.getElementById("outlined-basic").value;
     console.log(config.getPrefix());
-    axois.get(config.getPrefix() + `/api/getNovel?url=${url}`).then(
+    axois.get(config.getPrefix() + `/api/getNovel/?url=${url}`).then(
       (resolve) => {
         this.setState({ previewText: resolve.data });
       },

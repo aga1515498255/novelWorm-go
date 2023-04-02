@@ -10,6 +10,7 @@
 
 # production
 /ui/build
+/novel
 
 # misc
 /ui/.DS_Store

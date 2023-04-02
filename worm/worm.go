@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"regexp"
-	"runtime"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -28,11 +27,24 @@ type config struct {
 	WaterMark       []string `json:"waterMark"`
 	ChapterSelector []string `json:"chapterSelector"`
 	ContentSelector []string `json:"contentSelector"`
+	NameSelector    []string `json:"nameSelector"`
 
 	URLselector struct {
 		ChapterName string `json:"chapterName"`
 		ChapterURL  string `json:"chapterURL"`
 	} `json:"urlSelector"`
+}
+
+func (c *config) getName(doc *goquery.Document) string {
+
+	var selector *goquery.Selection = doc.Selection
+
+	for _, s := range c.NameSelector {
+		selector = selector.Find(s)
+	}
+
+	name := selector.Text()
+	return name
 }
 
 func (c *config) getchapterRef(doc *goquery.Document) []CharpterHeadInfo {
@@ -65,29 +77,29 @@ func (c *config) getchapterRef(doc *goquery.Document) []CharpterHeadInfo {
 	return chapterRef
 }
 
-func (c *config) getName(url string) {
-
-}
-
 func GetConfigs() []config {
 	return configs
 }
 
 func init() {
 
-	a, filepath, c, d := runtime.Caller(0)
-	fmt.Printf("a is %v b is %v c is %v d si %v", a, filepath, c, d)
+	// a, filepath, c, d := runtime.Caller(0)
+	// fmt.Printf("a is %v b is %v c is %v d si %v", a, filepath, c, d)
 
-	dir, _ := path.Split(filepath)
+	// dir, _ := path.Split(filepath)
 
-	for path.Base(dir) != "videosite" {
-		dir = dir[:len(dir)-1]
-		fmt.Println(dir)
-		dir, _ = path.Split(dir)
-		fmt.Println(dir)
-	}
+	// for path.Base(dir) != "videosite" {
+	// 	dir = dir[:len(dir)-1]
+	// 	fmt.Println(dir)
+	// 	dir, _ = path.Split(dir)
+	// 	fmt.Println(dir)
+	// }
 
-	configPath := path.Join(dir, "worm", "config.json")
+	dir := "."
+
+	configPath := path.Join(dir, "config.json")
+
+	fmt.Println("dir is ", dir)
 
 	configfile, err := os.Open(configPath)
 	if err != nil {
@@ -113,6 +125,30 @@ type CharpterHeadInfo struct {
 	CharpterURL string
 }
 
+func GetName(url string) string {
+	config, err := getConfigObj(url)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	targetPage, err := http.Get(url)
+	if err != nil {
+		fmt.Println(err)
+
+	}
+
+	body := targetPage.Body
+
+	doc, err := goquery.NewDocumentFromReader(body)
+	if err != nil {
+		fmt.Println(err)
+
+	}
+	name := config.getName(doc)
+
+	return name
+}
+
 func GetNovel(url string) {
 	config, err := getConfigObj(url)
 	if err != nil {
@@ -126,25 +162,13 @@ func GetNovel(url string) {
 
 	}
 
+	name := GetName(url)
+
 	fmt.Println("chapter infos is ", len(chapterInfos))
 
-	task, _ := CreateTask("test", chapterInfos, config)
+	task, _ := CreateTask(name, chapterInfos, config)
 
 	go task.Start()
-}
-
-func Getfile() (*os.File, error) {
-	file, err := os.OpenFile("./novel.txt", os.O_CREATE|os.O_APPEND|os.O_RDWR, os.ModeAppend|os.ModePerm)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return os.Create("./novel.txt")
-
-		} else {
-			return file, err
-		}
-	}
-
-	return file, err
 }
 
 func getConfigObj(indexURL string) (config, error) {
@@ -237,13 +261,13 @@ func strDewaterMark(str string, waterMark []string) string {
 
 	s := str
 	for _, w := range waterMark {
-		s = dewaterMark(s, w)
+		s = deWaterMark(s, w)
 	}
 
 	return s
 }
 
-func dewaterMark(str string, waterMark string) string {
+func deWaterMark(str string, waterMark string) string {
 	i := strings.Index(str, waterMark)
 
 	len := len(waterMark)
