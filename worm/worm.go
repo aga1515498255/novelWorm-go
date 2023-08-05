@@ -17,17 +17,25 @@ import (
 const (
 	MODE_PREVIWE = 0
 	MODE_FULL    = 1
+
+	MARK_MID = 0
+	MARK_END = 1
 )
+
+type WaterMark struct {
+	Content string `json:"content"`
+	Sort    int    `json:"sort"`
+}
 
 var configs []config
 
 type config struct {
-	Name            string   `json:"name"`
-	WebsetURl       string   `json:"websetURl"`
-	WaterMark       []string `json:"waterMark"`
-	ChapterSelector []string `json:"chapterSelector"`
-	ContentSelector []string `json:"contentSelector"`
-	NameSelector    []string `json:"nameSelector"`
+	Name            string      `json:"name"`
+	WebsetURl       string      `json:"websetURl"`
+	WaterMark       []WaterMark `json:"waterMark"`
+	ChapterSelector []string    `json:"chapterSelector"`
+	ContentSelector []string    `json:"contentSelector"`
+	NameSelector    []string    `json:"nameSelector"`
 
 	URLselector struct {
 		ChapterName string `json:"chapterName"`
@@ -275,4 +283,40 @@ func deWaterMark(str string, waterMark string) string {
 	res := str[:i] + str[i+len:]
 
 	return res
+}
+
+func (c *config) DeWaterMark(str string) string {
+	for _, v := range c.WaterMark {
+		fmt.Println("sort of waterMark is", v.Sort)
+		if v.Sort == MARK_MID {
+
+			return loopDeletStr(str, v.Content)
+		} else {
+			i := strings.Index(str, v.Content)
+			if i == -1 {
+				return str
+			} else {
+				return str[:i]
+			}
+		}
+	}
+	return str
+}
+
+func loopDeletStr(str string, target string) string {
+	i := strings.Index(str, target)
+
+	res := str
+
+	for {
+		if i == -1 {
+			return res
+		}
+		len := len(target)
+
+		res = str[:i] + str[i+len:]
+
+		i = strings.Index(str, target)
+
+	}
 }

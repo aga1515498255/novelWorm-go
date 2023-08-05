@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"runtime"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -21,6 +20,8 @@ const (
 	statusRunning
 	statusFinished
 )
+
+var FilePath string
 
 type bufferItem struct {
 	index   int
@@ -81,19 +82,16 @@ var tasks []*task
 
 func init() {
 
-	// a, filepath, c, d := runtime.Caller(0)
-	// fmt.Printf("a is %v b is %v c is %v d si %v", a, filepath, c, d)
+	currentPath, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
 
-	// dir, _ := path.Split(filepath)
+	FilePath = currentPath
 
-	// for path.Base(dir) != "videosite" {
-	// 	dir = dir[:len(dir)-1]
-	// 	fmt.Println(dir)
-	// 	dir, _ = path.Split(dir)
-	// 	fmt.Println(dir)
-	// }
-	// novelPath := path.Join(dir, "novel")
-	novelPath := "./novel"
+	fmt.Println("root is  ", FilePath)
+
+	novelPath := path.Join(FilePath, "novel")
 
 	novels, err := ioutil.ReadDir(novelPath)
 	if err != nil {
@@ -157,28 +155,15 @@ func CreateTask(novelName string, chapters []CharpterHeadInfo, config config) (t
 
 	fmt.Println("新建task")
 	goupsize := len(chapters) / 100
-
-	seconds := time.Now().Unix()
-
-	folderName := novelName + "_" + fmt.Sprint(seconds)
-
-	folderPath := path.Join("novel", folderName)
-
 	if goupsize < 5 {
 		goupsize = 5
 	}
 
-	_, callerPath, _, _ := runtime.Caller(0)
-	dir, _ := path.Split(callerPath)
+	seconds := time.Now().Unix()
 
-	for path.Base(dir) != "videosite" {
-		dir = dir[:len(dir)-1]
-		fmt.Println(dir)
-		dir, _ = path.Split(dir)
-		fmt.Println(dir)
-	}
-
-	folderPath = path.Join(dir, folderPath)
+	folderName := novelName + "_" + fmt.Sprint(seconds)
+	novelsPath := path.Join(FilePath, "novel")
+	folderPath := path.Join(novelsPath, folderName)
 
 	err := os.MkdirAll(folderPath, 0750)
 	if err != nil {
@@ -259,11 +244,16 @@ func (t *task) Start() {
 		return
 	}
 
-	t.Status = statusRunning
+	// t.Status = statusRunning
+	// cunrrentpath := os.Args[0]
+	// fmt.Printf("in start taskt current path is ", cunrrentpath)
+
+	// novelPath := path.Join(filePath, "novel")
 
 	novelFile, err := os.OpenFile(t.path, os.O_WRONLY, os.ModePerm)
 	if err != nil {
 		fmt.Println(err)
+		panic(err)
 	}
 
 	t.charpterBuffer = *new(myBuffer)
@@ -441,6 +431,8 @@ func (t *task) getOneChapter(intdex int, url string) error {
 	})
 
 	fmt.Println("第", intdex, "章，总长：", len(content))
+
+	content = t.config.DeWaterMark(content)
 
 	t.ch <- bufferItem{index: intdex, content: &content}
 

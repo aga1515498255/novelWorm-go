@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+
 	"path/filepath"
 	"strings"
 
@@ -19,6 +20,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/tidwall/gjson"
 )
 
 func Open(uri string) error {
@@ -43,7 +45,7 @@ func main() {
 
 	g := e.Group("/api")
 
-	g.GET("/preview/:url", preview1)
+	g.GET("/preview/*", preview1)
 	g.GET("/config", config1)
 	g.GET("/tasks", getTask1)
 	g.GET("/getNovel/*", getnovel)
@@ -52,13 +54,17 @@ func main() {
 
 	Open("http://localhost:4321")
 
-	e.Logger.Debug(e.Start(":4321"))
+	e := e.Start(":4321")
+	if e != nil {
+		fmt.Println(e)
+	}
 
 }
 
 var uiFS fs.FS
 
 func init() {
+
 	var err error
 	uiFS, err = fs.Sub(app.UI, "build") //
 	if err != nil {
@@ -146,7 +152,9 @@ func preview1(c echo.Context) error {
 		fmt.Println("erro in write response", err)
 	}
 
-	return c.JSON(http.StatusOK, res)
+	gjson.ParseBytes(res)
+
+	return c.JSON(http.StatusOK, gjson.ParseBytes(res).String())
 }
 
 func config1(c echo.Context) error {

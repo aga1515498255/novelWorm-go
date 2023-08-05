@@ -9,7 +9,14 @@ import axois from "axios";
 // import { resolveBreakpointValues } from "@mui/system/breakpoints";
 
 export default class Header extends Component {
-  state = { previewText: "这是章节预览区" };
+  state = {
+    previewText: (
+      <>
+        <p>这是章节预览区</p>
+        <p>使用说明：设置中选择一个网站，在其中搜索到一个小说的的主页，将小说主页的网址复制到爬取页面的输入框即可。</p>
+      </>
+    ),
+  };
 
   preview = () => {
     let url = document.getElementById("outlined-basic").value;

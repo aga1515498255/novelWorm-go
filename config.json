@@ -2,7 +2,10 @@
   {
     "name": "灯笔小说网",
     "websetURl": "https://www.dengbi2.com",
-    "waterMark": ["全网小说免费看,更新快:【APP安卓版】", "继续阅读本书最新章节，进入灯笔小说网址：www.DengBi.com "],
+    "waterMark": [
+      { "content": "全网小说免费看,更新快:【APP安卓版】", "sort": 0 },
+      { "content": "继续阅读本书最新章节，进入灯笔小说网址：www.DengBi.com ", "sort": 0 }
+    ],
     "nameSelector": [".novel_info_title", "h1"],
     "chapterSelector": ["ul#ul_all_chapters", "li", "a"],
     "urlSelector": {
@@ -14,7 +17,10 @@
   {
     "name": "铅笔小说网",
     "websetURl": "https://www.23qb.com",
-    "waterMark": ["全网小说免费看,更新快:【APP安卓版】", "继续阅读本书最新章节，进入灯笔小说网址：www.DengBi.com "],
+    "waterMark": [
+      { "content": "全网小说免费看,更新快:【APP安卓版】", "sort": 0 },
+      { "content": "继续阅读本书最新章节，进入灯笔小说网址：www.DengBi.com ", "sort": 0 }
+    ],
     "nameSelector": [".d_title", "h1"],
     "chapterSelector": ["ul#ul_all_chapters", "li", "a"],
     "urlSelector": {
@@ -26,7 +32,9 @@
   {
     "name": "逆天邪神网",
     "websetURl": "https://www.93xscc.com",
-    "waterMark": ["如果被/浏/览/器/强/制进入它们的阅/读/模/式了,阅读体/验极/差请退出转/码阅读."],
+    "waterMark": [
+      { "content": "如果被/浏/览/器/强/制进入它们的阅/读/模/式了,阅读体/验极/差请退出转/码阅读.", "sort": 0 }
+    ],
     "nameSelector": [".m-infos", "h1"],
     "chapterSelector": ["li.line3", "a"],
     "urlSelector": {
@@ -38,7 +46,7 @@
   {
     "name": "灯笔8",
     "websetURl": "https://www.dengbi8.com",
-    "waterMark": ["请记住本书首发域名：https://www.dengbi8.com。手机版阅读网址：https://wap.dengbi8.com "],
+    "waterMark": [{ "content": "无尽的昏迷过后，时宇猛地从床上起身。", "sort": 1 }],
     "nameSelector": [".info", "h2"],
     "chapterSelector": ["div.listmain", "dl", "dd", "a[style]"],
     "urlSelector": {
